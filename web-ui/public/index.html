@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Tools</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        #unwrapForm {
+            margin-top: 30px;
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            color: #333;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #333;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        #responseContainer {
+            display: none;
+            margin-top: 30px;
+        }
+
+        #response {
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #eee;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-right: 10px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #333;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        #viewToggle {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #viewLabel {
+            color: #666;
+        }
+
+        .info-icon {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .info-popup {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            border: 15px solid #ccc;
+            padding: 15px;
+            z-index: 1;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .info-popup pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <div class="logo">Vault Unwrap</div>
+        <h1>Secret Unwrap</h1>
+        <p>Unwrap your secret token</p>
+        <form id="unwrapForm">
+            <input type="text" id="token" name="token" placeholder="Enter token" required>
+            <span class="info-icon" id="infoIcon">?</span>
+            <div class="info-popup" id="infoPopup">
+                <p>To create a request using curl:</p>
+                <pre>curl -X POST \
+    -H "X-Vault-Token: your-token-here" \
+    https://vault-server-address/v1/sys/wrapping/unwrap</pre>
+            </div>
+            <button type="submit">Unwrap</button>
+        </form>
+        <div id="responseContainer">
+            <div id="viewToggle">
+                <label class="switch">
+                    <input type="checkbox" id="viewSwitch" checked>
+                    <span class="slider"></span>
+                </label>
+                <span id="viewLabel">Table</span>
+            </div>
+            <div id="response"></div>
+            <button id="copyButton">Copy to Clipboard</button>
+        </div>
+    </main>
+
+    <script>
+        const form = document.getElementById('unwrapForm');
+        const responseContainer = document.getElementById('responseContainer');
+        const responseDiv = document.getElementById('response');
+        const copyButton = document.getElementById('copyButton');
+        const viewSwitch = document.getElementById('viewSwitch');
+        const viewLabel = document.getElementById('viewLabel');
+
+        let responseData = null;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = document.getElementById('token').value;
+
+            try {
+                const response = await fetch('/unwrap', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token }),
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    responseData = JSON.parse(result.data);
+                    updateView();
+                    responseContainer.style.display = 'block';
+                } else {
+                    responseDiv.textContent = `Error: ${result.error}`;
+                    responseContainer.style.display = 'block';
+                    copyButton.style.display = 'none';
+                }
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}`;
+                responseContainer.style.display = 'block';
+                copyButton.style.display = 'none';
+            }
+        });
+
+        copyButton.addEventListener('click', () => {
+            const textArea = document.createElement('textarea');
+            textArea.value = responseDiv.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('Copied to clipboard!');
+        });
+
+        viewSwitch.addEventListener('change', updateView);
+
+        function updateView() {
+            if (viewSwitch.checked) {
+                // Table view
+                viewLabel.textContent = 'Table';
+                const table = createTable(responseData);
+                responseDiv.innerHTML = '';
+                responseDiv.appendChild(table);
+            } else {
+                // JSON view
+                viewLabel.textContent = 'JSON';
+                responseDiv.textContent = JSON.stringify(responseData, null, 2);
+            }
+        }
+
+        function createTable(data) {
+            const table = document.createElement('table');
+            const headerRow = table.insertRow();
+            const keyHeader = headerRow.insertCell(0);
+            const valueHeader = headerRow.insertCell(1);
+            keyHeader.textContent = 'Key';
+            valueHeader.textContent = 'Value';
+
+            for (const [key, value] of Object.entries(data)) {
+                const row = table.insertRow();
+                const keyCell = row.insertCell(0);
+                const valueCell = row.insertCell(1);
+                keyCell.textContent = key;
+                valueCell.textContent = formatValue(value);
+            }
+
+            return table;
+        }
+
+        function formatValue(value) {
+            if (typeof value === 'object' && value !== null) {
+                return JSON.stringify(value);
+            }
+            return value;
+        }
+        // Add this new code for the info popup
+        const infoIcon = document.getElementById('infoIcon');
+        const infoPopup = document.getElementById('infoPopup');
+
+        infoIcon.addEventListener('click', (e) => {
+            e.preventDefault();
+            infoPopup.style.display = infoPopup.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== infoIcon && !infoPopup.contains(e.target)) {
+                infoPopup.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+{
+  "vault_address": "https://vault.address:8200",
+  "listen_port": 3000
+}
