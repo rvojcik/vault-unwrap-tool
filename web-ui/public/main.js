@@ -7,11 +7,18 @@ const jsonView = document.getElementById('jsonView');
 const errorView = document.getElementById('errorView');
 const tableViewBtn = document.getElementById('tableViewBtn');
 const jsonViewBtn = document.getElementById('jsonViewBtn');
+const revealJsonButton = document.getElementById('revealJsonButton');
 const copyAllButton = document.getElementById('copyAllButton');
 const submitButton = form.querySelector('button[type="submit"]');
 const toast = document.getElementById('toast');
 
+// Fixed-length mask so the hidden value never leaks its real length.
+const MASK = '••••••••';
+
 let responseData = null;
+let currentView = 'table';
+let revealedKeys = new Set(); // table: which field values are currently shown
+let jsonRevealed = false;     // json: whether all values are currently shown
 
 // ---- Clipboard helper (modern API with a graceful fallback) ----
 async function copyText(text) {
@@ -94,24 +101,30 @@ function showError(message) {
 function showSecret() {
     errorView.innerHTML = '';
     resultsActions.style.display = 'flex';
+    // Always start with everything hidden on a fresh unwrap.
+    revealedKeys = new Set();
+    jsonRevealed = false;
     setView('table');
     renderTable();
-    jsonView.textContent = JSON.stringify(responseData, null, 2);
+    renderJson();
 }
 
 // ---- View toggle ----
 function setView(view) {
+    currentView = view;
     const isTable = view === 'table';
     tableView.style.display = isTable ? 'block' : 'none';
     jsonView.style.display = isTable ? 'none' : 'block';
     tableViewBtn.classList.toggle('active', isTable);
     jsonViewBtn.classList.toggle('active', !isTable);
+    // The global reveal toggle only applies to the JSON view.
+    revealJsonButton.style.display = isTable ? 'none' : 'inline-flex';
 }
 
 tableViewBtn.addEventListener('click', () => setView('table'));
 jsonViewBtn.addEventListener('click', () => setView('json'));
 
-// ---- Table rendering with per-value copy ----
+// ---- Table rendering with per-value reveal + copy ----
 function renderTable() {
     tableView.innerHTML = '';
     const table = document.createElement('table');
@@ -128,6 +141,7 @@ function renderTable() {
 
     for (const [key, rawValue] of entries) {
         const value = formatValue(rawValue);
+        const revealed = revealedKeys.has(key);
         const row = tbody.insertRow();
 
         const nameCell = row.insertCell();
@@ -135,24 +149,46 @@ function renderTable() {
         nameCell.textContent = key;
 
         const valueCell = row.insertCell();
-        valueCell.className = 'field-value';
-        valueCell.textContent = value;
+        valueCell.className = revealed ? 'field-value' : 'field-value masked';
+        valueCell.textContent = revealed ? value : MASK;
 
         const actionCell = row.insertCell();
         actionCell.className = 'field-action';
-        actionCell.appendChild(makeCopyButton(value));
+        const group = document.createElement('div');
+        group.className = 'action-group';
+        group.appendChild(makeRevealButton(key));
+        group.appendChild(makeCopyButton(value));
+        actionCell.appendChild(group);
     }
 
     table.appendChild(tbody);
     tableView.appendChild(table);
 }
 
+function makeRevealButton(key) {
+    const revealed = revealedKeys.has(key);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = revealed ? 'cell-btn revealed' : 'cell-btn';
+    button.textContent = revealed ? 'Hide' : 'Reveal';
+    button.addEventListener('click', () => {
+        if (revealedKeys.has(key)) {
+            revealedKeys.delete(key);
+        } else {
+            revealedKeys.add(key);
+        }
+        renderTable();
+    });
+    return button;
+}
+
 function makeCopyButton(value) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'copy-cell';
+    button.className = 'cell-btn';
     button.textContent = 'Copy';
     button.addEventListener('click', async () => {
+        // Copies the real value even while it is masked on screen.
         const ok = await copyText(value);
         if (ok) {
             button.textContent = 'Copied';
@@ -175,7 +211,28 @@ function formatValue(value) {
     return String(value);
 }
 
-// ---- Copy all ----
+// ---- JSON rendering with a single reveal toggle ----
+function renderJson() {
+    let obj;
+    if (jsonRevealed) {
+        obj = responseData;
+    } else {
+        obj = {};
+        for (const key of Object.keys(responseData)) {
+            obj[key] = MASK;
+        }
+    }
+    jsonView.textContent = JSON.stringify(obj, null, 2);
+    revealJsonButton.textContent = jsonRevealed ? 'Hide secrets' : 'Reveal secrets';
+    revealJsonButton.classList.toggle('revealed', jsonRevealed);
+}
+
+revealJsonButton.addEventListener('click', () => {
+    jsonRevealed = !jsonRevealed;
+    renderJson();
+});
+
+// ---- Copy all (always the real values) ----
 copyAllButton.addEventListener('click', async () => {
     if (!responseData) return;
     const ok = await copyText(JSON.stringify(responseData, null, 2));

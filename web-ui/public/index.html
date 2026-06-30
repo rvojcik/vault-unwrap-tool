@@ -217,7 +217,15 @@
         }
         .secret-table tr:nth-child(even) td { background: #fafbfc; }
 
-        .copy-cell {
+        .field-value.masked {
+            color: #9aa1ad;
+            letter-spacing: 2px;
+            user-select: none;
+        }
+
+        .action-group { display: inline-flex; gap: 8px; }
+
+        .cell-btn {
             display: inline-flex;
             align-items: center;
             gap: 5px;
@@ -230,8 +238,9 @@
             color: var(--accent);
             cursor: pointer;
         }
-        .copy-cell:hover { background: #f3f4f6; }
-        .copy-cell.copied { color: var(--success); border-color: var(--success); }
+        .cell-btn:hover { background: #f3f4f6; }
+        .cell-btn.copied { color: var(--success); border-color: var(--success); }
+        .cell-btn.revealed { color: var(--muted); }
 
         /* JSON view */
         #jsonView {
@@ -306,6 +315,7 @@
                         <button type="button" id="tableViewBtn" class="active">Table</button>
                         <button type="button" id="jsonViewBtn">JSON</button>
                     </div>
+                    <button type="button" class="btn-ghost" id="revealJsonButton">Reveal secrets</button>
                     <button type="button" class="btn-ghost" id="copyAllButton">Copy all</button>
                 </div>
             </div>
