@@ -1,22 +1,64 @@
 const form = document.getElementById('unwrapForm');
+const tokenInput = document.getElementById('token');
 const responseContainer = document.getElementById('responseContainer');
-const responseDiv = document.getElementById('response');
-const copyButton = document.getElementById('copyButton');
-const viewSwitch = document.getElementById('viewSwitch');
-const viewLabel = document.getElementById('viewLabel');
+const resultsActions = document.getElementById('resultsActions');
+const tableView = document.getElementById('tableView');
+const jsonView = document.getElementById('jsonView');
+const errorView = document.getElementById('errorView');
+const tableViewBtn = document.getElementById('tableViewBtn');
+const jsonViewBtn = document.getElementById('jsonViewBtn');
+const copyAllButton = document.getElementById('copyAllButton');
+const submitButton = form.querySelector('button[type="submit"]');
+const toast = document.getElementById('toast');
 
 let responseData = null;
 
+// ---- Clipboard helper (modern API with a graceful fallback) ----
+async function copyText(text) {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch (e) {
+        // fall through to legacy method
+    }
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return ok;
+    } catch (e) {
+        return false;
+    }
+}
+
+let toastTimer = null;
+function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+// ---- Form submission ----
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const token = document.getElementById('token').value;
+    const token = tokenInput.value.trim();
+    if (!token) return;
+
+    submitButton.disabled = true;
+    submitButton.textContent = 'Unwrapping…';
 
     try {
         const response = await fetch('/api/unwrap', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token }),
         });
 
@@ -24,84 +66,130 @@ form.addEventListener('submit', async (e) => {
 
         if (result.success) {
             responseData = JSON.parse(result.data);
-            copyButton.style.display = '';
-            updateView();
-            responseContainer.style.display = 'block';
+            showSecret();
         } else {
-            responseDiv.textContent = `Error: ${result.error}`;
-            responseContainer.style.display = 'block';
-            copyButton.style.display = 'none';
+            showError(result.error);
         }
     } catch (error) {
-        responseDiv.textContent = `Error: ${error.message}`;
+        showError(error.message);
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Unwrap secret';
         responseContainer.style.display = 'block';
-        copyButton.style.display = 'none';
     }
 });
 
-copyButton.addEventListener('click', () => {
-    const textArea = document.createElement('textarea');
-    textArea.value = responseDiv.textContent;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textArea);
-    alert('Copied to clipboard!');
-});
-
-viewSwitch.addEventListener('change', updateView);
-
-function updateView() {
-    if (viewSwitch.checked) {
-        // Table view
-        viewLabel.textContent = 'Table';
-        const table = createTable(responseData);
-        responseDiv.innerHTML = '';
-        responseDiv.appendChild(table);
-    } else {
-        // JSON view
-        viewLabel.textContent = 'JSON';
-        responseDiv.textContent = JSON.stringify(responseData, null, 2);
-    }
+function showError(message) {
+    responseData = null;
+    resultsActions.style.display = 'none';
+    tableView.style.display = 'none';
+    jsonView.style.display = 'none';
+    errorView.innerHTML = '';
+    const box = document.createElement('div');
+    box.className = 'error-box';
+    box.textContent = `Could not unwrap this token: ${message}`;
+    errorView.appendChild(box);
 }
 
-function createTable(data) {
-    const table = document.createElement('table');
-    const headerRow = table.insertRow();
-    const keyHeader = headerRow.insertCell(0);
-    const valueHeader = headerRow.insertCell(1);
-    keyHeader.textContent = 'Key';
-    valueHeader.textContent = 'Value';
+function showSecret() {
+    errorView.innerHTML = '';
+    resultsActions.style.display = 'flex';
+    setView('table');
+    renderTable();
+    jsonView.textContent = JSON.stringify(responseData, null, 2);
+}
 
-    for (const [key, value] of Object.entries(data)) {
-        const row = table.insertRow();
-        const keyCell = row.insertCell(0);
-        const valueCell = row.insertCell(1);
-        keyCell.textContent = key;
-        valueCell.textContent = formatValue(value);
+// ---- View toggle ----
+function setView(view) {
+    const isTable = view === 'table';
+    tableView.style.display = isTable ? 'block' : 'none';
+    jsonView.style.display = isTable ? 'none' : 'block';
+    tableViewBtn.classList.toggle('active', isTable);
+    jsonViewBtn.classList.toggle('active', !isTable);
+}
+
+tableViewBtn.addEventListener('click', () => setView('table'));
+jsonViewBtn.addEventListener('click', () => setView('json'));
+
+// ---- Table rendering with per-value copy ----
+function renderTable() {
+    tableView.innerHTML = '';
+    const table = document.createElement('table');
+    table.className = 'secret-table';
+    const tbody = document.createElement('tbody');
+
+    const entries = Object.entries(responseData);
+    if (entries.length === 0) {
+        const row = tbody.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 3;
+        cell.textContent = 'This secret is empty.';
     }
 
-    return table;
+    for (const [key, rawValue] of entries) {
+        const value = formatValue(rawValue);
+        const row = tbody.insertRow();
+
+        const nameCell = row.insertCell();
+        nameCell.className = 'field-name';
+        nameCell.textContent = key;
+
+        const valueCell = row.insertCell();
+        valueCell.className = 'field-value';
+        valueCell.textContent = value;
+
+        const actionCell = row.insertCell();
+        actionCell.className = 'field-action';
+        actionCell.appendChild(makeCopyButton(value));
+    }
+
+    table.appendChild(tbody);
+    tableView.appendChild(table);
+}
+
+function makeCopyButton(value) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'copy-cell';
+    button.textContent = 'Copy';
+    button.addEventListener('click', async () => {
+        const ok = await copyText(value);
+        if (ok) {
+            button.textContent = 'Copied';
+            button.classList.add('copied');
+            showToast('Value copied to clipboard');
+            setTimeout(() => {
+                button.textContent = 'Copy';
+                button.classList.remove('copied');
+            }, 1500);
+        } else {
+            showToast('Could not copy');
+        }
+    });
+    return button;
 }
 
 function formatValue(value) {
-    if (typeof value === 'object' && value !== null) {
-        return JSON.stringify(value);
-    }
-    return value;
+    if (value === null) return 'null';
+    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    return String(value);
 }
 
-// Info popup with the curl hint
-const infoIcon = document.getElementById('infoIcon');
-const infoPopup = document.getElementById('infoPopup');
-
-infoIcon.addEventListener('click', (e) => {
-    e.preventDefault();
-    infoPopup.style.display = infoPopup.style.display === 'block' ? 'none' : 'block';
+// ---- Copy all ----
+copyAllButton.addEventListener('click', async () => {
+    if (!responseData) return;
+    const ok = await copyText(JSON.stringify(responseData, null, 2));
+    showToast(ok ? 'All values copied to clipboard' : 'Could not copy');
 });
 
-document.addEventListener('click', (e) => {
-    if (e.target !== infoIcon && !infoPopup.contains(e.target)) {
-        infoPopup.style.display = 'none';
-    }
+// ---- Help (curl) toggle ----
+const helpToggle = document.getElementById('helpToggle');
+const helpBox = document.getElementById('helpBox');
+
+helpToggle.addEventListener('click', () => {
+    const open = helpBox.style.display === 'block';
+    helpBox.style.display = open ? 'none' : 'block';
+    helpToggle.textContent = open
+        ? 'Prefer the command line? Show curl command'
+        : 'Hide curl command';
 });

@@ -3,212 +3,319 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vault Tools</title>
+    <title>Vault Unwrap</title>
     <style>
+        :root {
+            --bg: #f4f5f7;
+            --card: #ffffff;
+            --text: #1f2430;
+            --muted: #6b7280;
+            --border: #e3e6eb;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; }
+
         body, html {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 640px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 48px 20px 64px;
         }
 
         .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 28px;
         }
+
+        .logo svg { width: 20px; height: 20px; }
 
         h1 {
-            font-size: 32px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 8px;
         }
 
-        p {
+        .subtitle {
             font-size: 16px;
-            color: #666;
-            margin-bottom: 30px;
+            color: var(--muted);
+            margin: 0 0 28px;
         }
 
-        #unwrapForm {
-            margin-top: 30px;
-            position: relative;
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+        }
+
+        label.field-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
 
         input[type="text"] {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             background-color: #fff;
-            color: #333;
-            font-size: 16px;
+            color: var(--text);
+            font-size: 15px;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
 
-        button {
-            background-color: #333;
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background-color: var(--accent);
             color: #fff;
             border: none;
-            padding: 10px 20px;
-            font-size: 16px;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.15s;
         }
 
-        button:hover {
-            background-color: #555;
-        }
+        .btn:hover { background-color: var(--accent-hover); }
 
-        #responseContainer {
-            display: none;
-            margin-top: 30px;
-        }
+        .btn-block { width: 100%; margin-top: 16px; }
 
-        #response {
-            background-color: #fff;
-            padding: 20px;
-            border: 1px solid #ccc;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+        .btn-ghost {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            padding: 7px 12px;
+            font-size: 13px;
+            font-weight: 600;
         }
+        .btn-ghost:hover { background: #f3f4f6; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th, td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #eee;
-        }
-
-        .switch {
-            position: relative;
+        .help-link {
             display: inline-block;
-            width: 60px;
-            height: 34px;
-            margin-right: 10px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--accent);
+            background: none;
+            border: none;
+            padding: 0;
             cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
+        }
+        .help-link:hover { text-decoration: underline; }
+
+        .help-box {
+            display: none;
+            margin-top: 12px;
+            background: #f8f9fb;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .help-box p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+        .help-box pre {
+            margin: 0;
+            font-size: 12.5px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text);
         }
 
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-        }
+        /* Results */
+        #responseContainer { display: none; margin-top: 28px; }
 
-        input:checked + .slider {
-            background-color: #333;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        #viewToggle {
+        .results-head {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
         }
+        .results-head h2 { font-size: 18px; margin: 0; }
 
-        #viewLabel {
-            color: #666;
+        .results-actions { display: flex; align-items: center; gap: 10px; }
+
+        .view-toggle {
+            display: inline-flex;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
         }
-
-        .info-icon {
-            position: absolute;
-            right: 10px;
-            top: 10px;
+        .view-toggle button {
+            background: #fff;
+            border: none;
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
             cursor: pointer;
-            font-weight: bold;
-            color: #666;
         }
+        .view-toggle button.active { background: var(--accent); color: #fff; }
 
-        .info-popup {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background-color: #fff;
-            border: 15px solid #ccc;
-            padding: 15px;
-            z-index: 1;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        /* Secret table */
+        .secret-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
         }
-
-        .info-popup pre {
+        .secret-table tr + tr td { border-top: 1px solid var(--border); }
+        .secret-table td {
+            padding: 14px 16px;
+            vertical-align: top;
+        }
+        .secret-table .field-name {
+            width: 35%;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+            word-break: break-word;
+        }
+        .secret-table .field-value {
+            font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+            font-size: 13.5px;
+            color: #111827;
+            word-break: break-all;
             white-space: pre-wrap;
-            word-wrap: break-word;
+        }
+        .secret-table .field-action {
+            width: 1%;
+            white-space: nowrap;
+            text-align: right;
+        }
+        .secret-table tr:nth-child(even) td { background: #fafbfc; }
+
+        .copy-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--accent);
+            cursor: pointer;
+        }
+        .copy-cell:hover { background: #f3f4f6; }
+        .copy-cell.copied { color: var(--success); border-color: var(--success); }
+
+        /* JSON view */
+        #jsonView {
+            display: none;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 18px;
+            border-radius: 10px;
+            font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
             margin: 0;
+        }
+
+        .error-box {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            padding: 14px 16px;
+            border-radius: 8px;
             font-size: 14px;
         }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #111827;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
     <main class="container">
-        <div class="logo">Vault Unwrap</div>
-        <h1>Secret Unwrap</h1>
-        <p>Unwrap your secret token</p>
-        <form id="unwrapForm">
-            <input type="text" id="token" name="token" placeholder="Enter token" required maxlength="512" autocomplete="off" spellcheck="false">
-            <span class="info-icon" id="infoIcon">?</span>
-            <div class="info-popup" id="infoPopup">
-                <p>To create a request using curl:</p>
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Vault Unwrap
+        </div>
+        <h1>Reveal your secret</h1>
+        <p class="subtitle">Paste the token you were given to securely unwrap the secret it contains.</p>
+
+        <div class="card">
+            <form id="unwrapForm">
+                <label class="field-label" for="token">Secret token</label>
+                <input type="text" id="token" name="token" placeholder="e.g. hvs.CAESI...." required maxlength="512" autocomplete="off" spellcheck="false">
+                <button type="submit" class="btn btn-block">Unwrap secret</button>
+            </form>
+            <button type="button" class="help-link" id="helpToggle">Prefer the command line? Show curl command</button>
+            <div class="help-box" id="helpBox">
+                <p>Run this from a terminal instead:</p>
                 <pre>curl -X POST \
     -H "X-Vault-Token: your-token-here" \
     https://vault-server-address/v1/sys/wrapping/unwrap</pre>
             </div>
-            <button type="submit">Unwrap</button>
-        </form>
+        </div>
+
         <div id="responseContainer">
-            <div id="viewToggle">
-                <label class="switch">
-                    <input type="checkbox" id="viewSwitch" checked>
-                    <span class="slider"></span>
-                </label>
-                <span id="viewLabel">Table</span>
+            <div class="results-head">
+                <h2>Your secret</h2>
+                <div class="results-actions" id="resultsActions">
+                    <div class="view-toggle">
+                        <button type="button" id="tableViewBtn" class="active">Table</button>
+                        <button type="button" id="jsonViewBtn">JSON</button>
+                    </div>
+                    <button type="button" class="btn-ghost" id="copyAllButton">Copy all</button>
+                </div>
             </div>
-            <div id="response"></div>
-            <button id="copyButton">Copy to Clipboard</button>
+            <div id="tableView"></div>
+            <pre id="jsonView"></pre>
+            <div id="errorView"></div>
         </div>
     </main>
+
+    <div id="toast"></div>
 
     <script src="/main.js"></script>
 </body>
